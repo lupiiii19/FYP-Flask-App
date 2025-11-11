@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="h4 mb-3">Recommendation Demo</h1>
+
+  {% if load_error %}
+    <div class="alert alert-warning">⚠️ {{ load_error }}</div>
+  {% endif %}
+
+  <form method="post" class="row g-3">
+    <div class="col-md-8">
+      <input class="form-control" name="query" placeholder="Type a query..." value="{{ query }}">
+    </div>
+    <div class="col-md-2">
+      <input class="form-control" name="topk" type="number" min="1" max="20" value="{{ topk }}">
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100">Search</button>
+    </div>
+  </form>
+
+  {% if results is not none %}
+    <hr>
+    {% if results %}
+      <ol class="list-group list-group-numbered">
+        {% for r in results %}
+          <li class="list-group-item">
+            <div class="fw-bold">Score: {{ r.score }}</div>
+            <div class="text-muted small">{{ r.text }}</div>
+            {% for key, val in r.items() if key not in ['rank', 'score', 'text'] and val %}
+              <div class="small"><strong>{{ key|capitalize }}:</strong> {{ val }}</div>
+            {% endfor %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="text-muted">No results.</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

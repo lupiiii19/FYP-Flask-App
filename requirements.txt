@@ -1,0 +1,8 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+pandas
+scikit-learn
+joblib
+nltk
+gunicorn

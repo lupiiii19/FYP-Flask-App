@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h4 mb-3">Analytics</h1>
+
+<div class="row g-3">
+  <!-- KPI cards -->
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted small">Total Searches</div>
+        <div class="fs-3">{{ total }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted small">Average Latency</div>
+        <div class="fs-3">{{ avg_latency }} ms</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<h2 class="h6 mt-3">Top Queries</h2>
+<table class="table table-sm table-striped">
+  <thead><tr><th>Query</th><th>Count</th></tr></thead>
+  <tbody>
+    {% for q, n in top_queries %}
+      <tr><td>{{ q }}</td><td>{{ n }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="h6 mt-4">Recent (last 20)</h2>
+<table class="table table-sm table-striped">
+  <thead>
+    <tr><th>Time (UTC)</th><th>Query</th><th>Results</th><th>Latency</th><th>Top preview</th></tr>
+  </thead>
+  <tbody>
+    {% for r in recent %}
+      <tr>
+        <td class="small">{{ r.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td>{{ r.query }}</td>
+        <td>{{ r.results_count }}</td>
+        <td>{{ r.latency_ms }} ms</td>
+        <td class="small text-muted">{{ r.top_text }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

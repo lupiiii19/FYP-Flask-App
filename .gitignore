@@ -1,0 +1,15 @@
+# Virtual environments and caches
+venv/
+__pycache__/
+*.pyc
+
+# Local environment and database files
+.env
+*.db
+
+# Model and cache artifacts
+*.pkl
+.mypy_cache/
+
+# Temporary or build files
+*.log

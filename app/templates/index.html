@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <div class="card-body">
+      <h1 class="h4 mb-2">Welcome 👋</h1>
+      <p class="mb-0">This demo loads your TF-IDF model/data from <code>Dataset/</code> and serves both an HTML page and a JSON API.</p>
+      <a class="btn btn-primary mt-3" href="{{ url_for('main.recommend_page') }}">Open the demo</a>
+    </div>
+  </div>
+{% endblock %}
