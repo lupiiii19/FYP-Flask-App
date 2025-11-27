@@ -89,37 +89,49 @@ def api_recommend():
 @bp.route("/admin/analytics")
 def analytics():
     """
-    Very simple analytics page (no auth yet—OK for local dev):
-      - totals
-      - recent searches
-      - top queries
-      - average latency
+    Simple analytics page.
+    Shows totals, average latency, top queries, and recent logs.
+    If anything goes wrong with the DB, show a friendly message instead of 500.
     """
-    # Totals
-    total = db.session.query(func.count(SearchLog.id)).scalar()
-    avg_latency = db.session.query(func.avg(SearchLog.latency_ms)).scalar() or 0
+    error = None
+    total = 0
+    avg_latency = 0
+    top_queries = []
+    recent = []
 
-    # Top queries (grouped)
-    top_queries = (
-        db.session.query(SearchLog.query, func.count(SearchLog.id).label("n"))
-        .group_by(SearchLog.query)
-        .order_by(desc(func.count(SearchLog.id)))
-        .limit(10)
-        .all()
-    )
+    try:
+        # Total number of logged searches
+        total = db.session.query(func.count(SearchLog.id)).scalar() or 0
 
-    # Recent 20
-    recent = (
-        db.session.query(SearchLog)
-        .order_by(desc(SearchLog.created_at))
-        .limit(20)
-        .all()
-    )
+        # Average latency (ms)
+        avg_latency = db.session.query(func.avg(SearchLog.latency_ms)).scalar() or 0
+
+        # Top queries (grouped by query text)
+        top_queries = (
+            db.session.query(SearchLog.query, func.count(SearchLog.id).label("n"))
+            .group_by(SearchLog.query)
+            .order_by(desc("n"))
+            .limit(10)
+            .all()
+        )
+
+        # Most recent 20 log entries
+        recent = (
+            db.session.query(SearchLog)
+            .order_by(desc(SearchLog.created_at))
+            .limit(20)
+            .all()
+        )
+
+    except Exception as e:
+        # If anything fails (e.g. DB issue), capture it and display on the page
+        error = str(e)
 
     return render_template(
         "analytics.html",
-        total=total,
-        avg_latency=int(avg_latency),
+        total=int(total or 0),
+        avg_latency=int(avg_latency or 0),
         top_queries=top_queries,
-        recent=recent
+        recent=recent,
+        error=error,   # pass the error (if any) to the template
     )

@@ -1,4 +1,14 @@
 {% extends "base.html" %}
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h4 mb-3">Analytics</h1>
+
+{% if error %}
+  <div class="alert alert-warning">
+    ⚠️ Analytics error: {{ error }}
+  </div>
+{% endif %}
+
 {% block content %}
 <h1 class="h4 mb-3">Analytics</h1>
 
