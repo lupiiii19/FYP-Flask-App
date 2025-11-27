@@ -17,8 +17,8 @@ def index():
 @bp.route("/recommend", methods=["GET", "POST"])
 def recommend_page():
     """
-    GET  -> just render the form (do NOT try to load models yet)
-    POST -> try to load models and compute results; show friendly errors
+    GET  -> just show the form.
+    POST -> run the recommender AND log the search into the database.
     """
     load_error = None
     results = None
@@ -26,25 +26,43 @@ def recommend_page():
     topk = 5
 
     if request.method == "POST":
+        # Read form inputs safely
         query = (request.form.get("query") or "").strip()
         try:
             topk = int(request.form.get("topk") or 5)
         except ValueError:
-            topk = 5
-        # Clamp to a reasonable range
-        topk = max(1, min(topk, 50))
+            topk = 5  # fallback
 
-        try:
-            # Only load/build the model when the user actually searches
-            ensure_models_loaded()
-            if query:
+        if query:
+            try:
+                # Measure how long the recommendation takes
+                t0 = time.perf_counter()
+
+                # Make sure dataset/model are ready
+                ensure_models_loaded()
+
+                # Get top-k recommendations
                 results = recommend_topk(query, topk)
-        except Exception as e:
-            # Any error (e.g., no CSV on server) shows up as a friendly banner
-            current_app.logger.exception("Model load or recommend failed")
-            load_error = "There was a problem preparing the model. Please try again later."
 
-    # On GET, or if error happened, we still render the page
+                latency_ms = int((time.perf_counter() - t0) * 1000)
+
+                # Short preview of the top result (for analytics)
+                top_text = (results[0]["text"][:120] + "…") if results else None
+
+                # Create a SearchLog row
+                log = SearchLog(
+                    query=query,
+                    results_count=len(results or []),
+                    top_text=top_text,
+                    latency_ms=latency_ms,
+                )
+                db.session.add(log)
+                db.session.commit()  # actually write to the DB
+
+            except Exception as e:
+                # Any error (e.g. dataset missing) -> show friendly message
+                load_error = str(e)
+
     return render_template(
         "results.html",
         query=query,
@@ -54,37 +72,42 @@ def recommend_page():
     )
 
 
+
 @bp.route("/api/recommend")
 def api_recommend():
-    # JSON API mirrors the UI behavior
-    try:
-        ensure_models_loaded()
-    except Exception:
-        current_app.logger.exception("Model load failed for API")
-        return jsonify({"error": "Model not available"}), 503
-
+    """
+    JSON API for programmatic access.
+    Also logs each call into SearchLog, same as the web form.
+    """
     query = (request.args.get("query") or "").strip()
-    try:
-        topk = int(request.args.get("topk", 5))
-    except (ValueError, TypeError):
-        topk = 5
-    topk = max(1, min(topk, 50))
+    topk = int(request.args.get("topk", 5))
+
     if not query:
         return jsonify({"error": "query is required"}), 400
 
-    t0 = time.perf_counter()
-    results = recommend_topk(query, topk)
-    latency_ms = int((time.perf_counter() - t0) * 1000)
-
-    # Log the API call too
-    top_text = (results[0]["text"][:120] + "…") if results else None
     try:
-        db.session.add(SearchLog(query=query, results_count=len(results), top_text=top_text, latency_ms=latency_ms))
-        db.session.commit()
-    except Exception:
-        current_app.logger.exception("Failed to log API search")
+        t0 = time.perf_counter()
+        ensure_models_loaded()
+        results = recommend_topk(query, topk)
+        latency_ms = int((time.perf_counter() - t0) * 1000)
 
-    return jsonify(results)
+        top_text = (results[0]["text"][:120] + "…") if results else None
+
+        # Log the API call
+        log = SearchLog(
+            query=query,
+            results_count=len(results or []),
+            top_text=top_text,
+            latency_ms=latency_ms,
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        return jsonify(results)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @bp.route("/admin/analytics")
 def analytics():
