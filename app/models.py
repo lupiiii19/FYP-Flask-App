@@ -1,6 +1,8 @@
 # app/models.py
 from datetime import datetime
 from . import db
+from flask_login import UserMixin
+
 
 # --------------------
 # 1. Search Log (your original model)
@@ -44,7 +46,7 @@ class Role(db.Model):
 # 3. Users
 # --------------------
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
