@@ -6,3 +6,5 @@ scikit-learn
 joblib
 nltk
 gunicorn
+flask-login
+
