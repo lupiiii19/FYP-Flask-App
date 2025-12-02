@@ -273,3 +273,66 @@ def analytics():
         recent=recent,
         error=error,   # pass the error (if any) to the template
     )
+
+
+# ---------------------------
+# User profile & password
+# ---------------------------
+
+@bp.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    """
+    Show and update basic user profile info.
+    For now we let user edit only their name.
+    Email is shown but not editable (used for login).
+    """
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+
+        if not name:
+            flash("Name cannot be empty.", "danger")
+            return redirect(url_for("main.profile"))
+
+        current_user.full_name = name
+        db.session.commit()
+        flash("Profile updated.", "success")
+        return redirect(url_for("main.profile"))
+
+    return render_template("profile.html")
+
+
+@bp.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    """
+    Allow a logged-in user to change their password.
+    """
+    if request.method == "POST":
+        current_pw = request.form.get("current_password") or ""
+        new_pw = request.form.get("new_password") or ""
+        confirm_pw = request.form.get("confirm_password") or ""
+
+        # 1. Check current password
+        if not check_password_hash(current_user.password_hash, current_pw):
+            flash("Current password is incorrect.", "danger")
+            return redirect(url_for("main.change_password"))
+
+        # 2. Check new password match
+        if new_pw != confirm_pw:
+            flash("New passwords do not match.", "danger")
+            return redirect(url_for("main.change_password"))
+
+        # 3. Basic length check
+        if len(new_pw) < 6:
+            flash("New password must be at least 6 characters.", "danger")
+            return redirect(url_for("main.change_password"))
+
+        # 4. Save new password
+        current_user.password_hash = generate_password_hash(new_pw)
+        db.session.commit()
+
+        flash("Password updated successfully.", "success")
+        return redirect(url_for("main.profile"))
+
+    return render_template("change_password.html")

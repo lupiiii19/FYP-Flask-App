@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 600px;">
+    <h2 class="mb-4">Your Profile</h2>
+
+    <form method="POST" action="{{ url_for('main.profile') }}">
+        <div class="mb-3">
+            <label class="form-label">Email (login)</label>
+            <input type="email" class="form-control" value="{{ current_user.email }}" disabled>
+            <div class="form-text">Email is used as your login and cannot be changed here.</div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input
+                type="text"
+                name="name"
+                class="form-control"
+                value="{{ current_user.full_name }}"
+                required
+            >
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Member since</label>
+            <input
+                type="text"
+                class="form-control"
+                value="{{ current_user.created_at.strftime('%Y-%m-%d %H:%M') if current_user.created_at }}"
+                disabled
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save changes</button>
+        <a href="{{ url_for('main.change_password') }}" class="btn btn-outline-secondary ms-2">
+            Change password
+        </a>
+    </form>
+</div>
+{% endblock %}
