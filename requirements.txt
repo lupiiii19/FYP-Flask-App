@@ -1,10 +1,10 @@
 Flask
-Flask-SQLAlchemy
-Flask-Migrate
+flask_sqlalchemy
+flask_migrate
+flask_login
+gunicorn
+psycopg2-binary
+numpy
 pandas
 scikit-learn
 joblib
-nltk
-gunicorn
-flask-login
-
