@@ -114,44 +114,6 @@ def logout():
     flash("Logged out.", "info")
     return redirect(url_for("main.index"))
 
-
-# Optional helper route to create the first admin account
-@bp.route("/init-admin")
-def init_admin():
-    """
-    ONE-TIME helper to create an admin account.
-    Visit this route once, then remove or disable it.
-
-    Admin credentials created:
-        email: admin@example.com
-        password: changeme123
-    """
-    admin_email = "admin@example.com"
-
-    # If admin already exists, don't create another
-    existing = User.query.filter_by(email=admin_email).first()
-    if existing:
-        return "Admin already exists."
-
-    # Get or create 'admin' role
-    admin_role = Role.query.filter_by(name="admin").first()
-    if not admin_role:
-        admin_role = Role(name="admin", description="Admin user")
-        db.session.add(admin_role)
-        db.session.commit()
-
-    admin = User(
-        email=admin_email,
-        full_name="Admin",
-        password_hash=generate_password_hash("changeme123"),
-        role=admin_role,
-    )
-    db.session.add(admin)
-    db.session.commit()
-
-    return "Admin created: admin@example.com / changeme123"
-
-
 # ---------------------------
 # Recommender (public)
 # ---------------------------
