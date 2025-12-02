@@ -207,3 +207,38 @@ class ActivityLog(db.Model):
 
     def __repr__(self):
         return f"<ActivityLog {self.action} by {self.user_id} at {self.created_at}>"
+    
+
+# --------------------
+# 8. User Preferences (for cold-start)
+# --------------------
+
+class UserPreference(db.Model):
+    __tablename__ = "user_preferences"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        unique=True,
+        nullable=False
+    )
+
+    # Comma-separated list of topics e.g. "Stress,Anxiety,Sleep"
+    topics = db.Column(db.String(255))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    user = db.relationship(
+        "User",
+        backref=db.backref("preference", uselist=False)
+    )
+
+    def __repr__(self):
+        return f"<UserPreference user_id={self.user_id} topics={self.topics}>"
+

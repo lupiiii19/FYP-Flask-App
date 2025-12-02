@@ -37,3 +37,9 @@
     {% endif %}
   {% endif %}
 {% endblock %}
+
+{% if used_prefs_only %}
+    <div class="alert alert-info">
+        These recommendations are based on your saved interests. You can refine them by entering a more specific query.
+    </div>
+{% endif %}

@@ -19,7 +19,7 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from .services.recommender import ensure_models_loaded, recommend_topk
-from .models import SearchLog, User, Role
+from .models import SearchLog, User, Role, UserPreference
 from . import db
 from sqlalchemy import func, desc
 
@@ -123,11 +123,13 @@ def recommend_page():
     """
     GET  -> just show the form.
     POST -> run the recommender AND log the search into the database.
+    Uses user preferences (if logged in) to help with cold start.
     """
     load_error = None
     results = None
     query = ""
     topk = 5
+    used_prefs_only = False  # flag for template message
 
     if request.method == "POST":
         # Read form inputs safely
@@ -137,7 +139,25 @@ def recommend_page():
         except ValueError:
             topk = 5  # fallback
 
-        if query:
+        # Build effective query using preferences (for cold-start)
+        effective_query = query
+
+        pref_topics = ""
+        if current_user.is_authenticated and getattr(current_user, "preference", None):
+            pref_topics = current_user.preference.topics or ""
+
+        # If user has preferences, weave them into the query
+        if pref_topics:
+            pref_terms = pref_topics.replace(",", " ")
+            if effective_query:
+                # boost user preferences on top of their explicit query
+                effective_query = f"{effective_query} {pref_terms}"
+            else:
+                # cold-start: no query, just use preferences
+                effective_query = pref_terms
+                used_prefs_only = True
+
+        if effective_query:
             try:
                 # Measure how long the recommendation takes
                 t0 = time.perf_counter()
@@ -146,16 +166,16 @@ def recommend_page():
                 ensure_models_loaded()
 
                 # Get top-k recommendations
-                results = recommend_topk(query, topk)
+                results = recommend_topk(effective_query, topk)
 
                 latency_ms = int((time.perf_counter() - t0) * 1000)
 
                 # Short preview of the top result (for analytics)
                 top_text = (results[0]["text"][:120] + "…") if results else None
 
-                # Create a SearchLog row
+                # Log only the original query text (what user actually typed)
                 log = SearchLog(
-                    query=query,
+                    query=query if query else f"[prefs:{pref_topics}]",
                     results_count=len(results or []),
                     top_text=top_text,
                     latency_ms=latency_ms,
@@ -166,6 +186,8 @@ def recommend_page():
             except Exception as e:
                 # Any error (e.g. dataset missing) -> show friendly message
                 load_error = str(e)
+        else:
+            load_error = "Please enter a query or set your interests in the Profile page."
 
     return render_template(
         "results.html",
@@ -173,7 +195,9 @@ def recommend_page():
         results=results,
         topk=topk,
         load_error=load_error,
+        used_prefs_only=used_prefs_only,
     )
+
 
 
 @bp.route("/api/recommend")
@@ -283,10 +307,28 @@ def analytics():
 @login_required
 def profile():
     """
-    Show and update basic user profile info.
-    For now we let user edit only their name.
-    Email is shown but not editable (used for login).
+    Show and update basic user profile info + preferences.
+    Preferences are stored in UserPreference (one row per user).
     """
+    # Ensure a preference row exists for this user
+    pref = UserPreference.query.filter_by(user_id=current_user.id).first()
+    if not pref:
+        pref = UserPreference(user_id=current_user.id, topics="")
+        db.session.add(pref)
+        db.session.commit()
+
+    # Define the available topics (you can tweak these labels)
+    all_topics = [
+        "Stress",
+        "Anxiety",
+        "Sadness / Depression",
+        "Relationships",
+        "Sleep",
+        "Work / Study Pressure",
+        "Self-esteem & Confidence",
+        "Motivation / Productivity",
+    ]
+
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
 
@@ -294,12 +336,30 @@ def profile():
             flash("Name cannot be empty.", "danger")
             return redirect(url_for("main.profile"))
 
+        # Update name
         current_user.full_name = name
+
+        # Update preferences (checkboxes)
+        selected_topics = request.form.getlist("topics")  # list of strings
+        pref.topics = ",".join(selected_topics)
+
         db.session.commit()
-        flash("Profile updated.", "success")
+        flash("Profile & preferences updated.", "success")
         return redirect(url_for("main.profile"))
 
-    return render_template("profile.html")
+    # For GET: prepare which topics are already selected
+    selected_topics = (
+        [t for t in (pref.topics or "").split(",") if t.strip()]
+        if pref and pref.topics
+        else []
+    )
+
+    return render_template(
+        "profile.html",
+        all_topics=all_topics,
+        selected_topics=selected_topics,
+    )
+
 
 
 @bp.route("/change-password", methods=["GET", "POST"])
